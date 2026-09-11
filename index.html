@@ -369,24 +369,16 @@
                             pf += myTotalPts;
                             pa += oppTotalPts;
 
+                            // Perhitungan poin sepenuhnya berdasarkan hasil keunggulan SET
                             if (mySetsWon > oppSetsWon) {
                                 wins++;
-                                pts += 3; // Menang = 3 poin
+                                pts += 3; // Menang Set = 3 poin
                             } else if (mySetsWon < oppSetsWon) {
                                 loses++;
-                                pts += 0; // Kalah = 0 poin
+                                pts += 0; // Kalah Set = 0 poin
                             } else {
-                                // Jika set sama (misal 1-1 pada 2 set), lihat total poin
-                                if (myTotalPts > oppTotalPts) {
-                                    wins++;
-                                    pts += 3;
-                                } else if (myTotalPts < oppTotalPts) {
-                                    loses++;
-                                    pts += 0;
-                                } else {
-                                    draws++;
-                                    pts += 1; // Seri = 1 poin
-                                }
+                                draws++;
+                                pts += 1; // Seri Set (misal 1-1) = 1 poin
                             }
                         }
                     });
