@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Americano Badminton Pro - Multi Court</title>
+    <title>Americano Badminton Pro - Multi Court & Sets</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -290,8 +290,6 @@
                     t1: bestOption.ta.map(p => p.id),
                     t2: bestOption.tb.map(p => p.id),
                     sets: [
-                        { s1: 0, s2: 0 },
-                        { s1: 0, s2: 0 },
                         { s1: 0, s2: 0 }
                     ],
                     done: false, 
@@ -301,77 +299,85 @@
                 setView('matches');
             };
 
+            const updateSetScore = (matchId, setIndex, team, val) => {
+                setMatches(matches.map(m => {
+                    if (m.id === matchId) {
+                        const newSets = [...m.sets];
+                        newSets[setIndex] = {
+                            ...newSets[setIndex],
+                            [team === 1 ? 's1' : 's2']: parseInt(val) || 0
+                        };
+                        return { ...m, sets: newSets };
+                    }
+                    return m;
+                }));
+            };
+
+            const addSet = (matchId) => {
+                setMatches(matches.map(m => {
+                    if (m.id === matchId && m.sets.length < 3) {
+                        return { ...m, sets: [...m.sets, { s1: 0, s2: 0 }] };
+                    }
+                    return m;
+                }));
+            };
+
+            const removeSet = (matchId) => {
+                setMatches(matches.map(m => {
+                    if (m.id === matchId && m.sets.length > 1) {
+                        return { ...m, sets: m.sets.slice(0, -1) };
+                    }
+                    return m;
+                }));
+            };
+
+            const calculateMatchResult = (match) => {
+                let totalS1 = 0;
+                let totalS2 = 0;
+                let setsWonT1 = 0;
+                let setsWonT2 = 0;
+
+                match.sets.forEach(s => {
+                    const s1 = parseInt(s.s1) || 0;
+                    const s2 = parseInt(s.s2) || 0;
+                    totalS1 += s1;
+                    totalS2 += s2;
+                    if (s1 > s2) setsWonT1++;
+                    else if (s2 > s1) setsWonT2++;
+                });
+
+                return { totalS1, totalS2, setsWonT1, setsWonT2 };
+            };
+
             const getStandings = () => {
                 if (sharedViewData) return sharedViewData.results;
                 const stats = players.map(p => {
-                    let wins = 0, loses = 0, played = 0;
-                    let setsWon = 0, setsLost = 0;
-                    let pf = 0, pa = 0;
-
+                    let pts = 0; let pf = 0; let pa = 0; let wins = 0; let loses = 0; let played = 0;
                     matches.filter(m => m.done).forEach(m => {
-                        const isT1 = m.t1.includes(p.id);
-                        const isT2 = m.t2.includes(p.id);
+                        const { totalS1, totalS2, setsWonT1, setsWonT2 } = calculateMatchResult(m);
+                        
+                        let isT1 = m.t1.includes(p.id);
+                        let isT2 = m.t2.includes(p.id);
 
                         if (isT1 || isT2) {
                             played++;
-                            let matchSetT1 = 0;
-                            let matchSetT2 = 0;
-
-                            const setList = m.sets || [{ s1: m.s1 || 0, s2: m.s2 || 0 }];
-                            setList.forEach(set => {
-                                const s1 = parseInt(set.s1) || 0;
-                                const s2 = parseInt(set.s2) || 0;
-
-                                if (s1 > 0 || s2 > 0) {
-                                    if (isT1) {
-                                        pf += s1; pa += s2;
-                                        if (s1 > s2) matchSetT1++;
-                                        else if (s2 > s1) matchSetT2++;
-                                    } else {
-                                        pf += s2; pa += s1;
-                                        if (s2 > s1) matchSetT2++;
-                                        else if (s1 > s2) matchSetT1++;
-                                    }
-                                }
-                            });
-
                             if (isT1) {
-                                setsWon += matchSetT1;
-                                setsLost += matchSetT2;
-                                if (matchSetT1 > matchSetT2) wins++;
-                                else if (matchSetT2 > matchSetT1) loses++;
+                                pf += totalS1;
+                                pa += totalS2;
+                                if (setsWonT1 > setsWonT2 || (setsWonT1 === setsWonT2 && totalS1 > totalS2)) wins++;
+                                else loses++;
                             } else {
-                                setsWon += matchSetT2;
-                                setsLost += matchSetT1;
-                                if (matchSetT2 > matchSetT1) wins++;
-                                else if (matchSetT1 > matchSetT2) loses++;
+                                pf += totalS2;
+                                pa += totalS1;
+                                if (setsWonT2 > setsWonT1 || (setsWonT1 === setsWonT2 && totalS2 > totalS1)) wins++;
+                                else loses++;
                             }
                         }
                     });
-
-                    const setDiff = setsWon - setsLost;
-                    const diff = pf - pa;
-
-                    return { 
-                        ...p, 
-                        pts: wins, 
-                        wins, 
-                        loses, 
-                        played, 
-                        setsWon, 
-                        setsLost, 
-                        setDiff, 
-                        pf, 
-                        pa, 
-                        diff 
-                    };
+                    pts = wins;
+                    return { ...p, pts, pf, pa, diff: pf - pa, wins, loses, played };
                 });
-
-                return stats.sort((a, b) => 
-                    b.pts - a.pts || 
-                    b.setDiff - a.setDiff || 
-                    b.diff - a.diff
-                );
+                return stats.sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.wins - a.wins);
             };
 
             const shareStandings = async () => {
@@ -406,7 +412,7 @@
             const saveReport = () => {
                 const standings = getStandings();
                 let text = `REKAP AMERICANO\nEvent: ${eventDetails.title}\nLokasi: ${eventDetails.location}\nTanggal: ${eventDetails.date}\n\n`;
-                standings.forEach((p, i) => { text += `${i + 1}. ${p.name} - Menang: ${p.pts}, Set +/-: ${p.setDiff}, Poin +/-: ${p.diff}\n`; });
+                standings.forEach((p, i) => { text += `${i + 1}. ${p.name} - Menang: ${p.pts}, +/-: ${p.diff}\n`; });
                 const blob = new Blob([text], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a'); a.href = url; a.download = `Rekap_Americano.txt`; a.click();
@@ -436,22 +442,20 @@
                              <table className="w-full text-left">
                                 <thead className="bg-slate-100 text-3xl font-black uppercase text-slate-500">
                                     <tr>
-                                        <th className="py-12 px-6 text-center">Pos</th>
+                                        <th className="py-12 px-8 text-center">Pos</th>
                                         <th className="py-12 px-4">Pemain</th>
                                         <th className="py-12 px-4 text-center">MP</th>
-                                        <th className="py-12 px-4 text-center">Set +/-</th>
-                                        <th className="py-12 px-4 text-center">Poin +/-</th>
+                                        <th className="py-12 px-4 text-center">+/-</th>
                                         <th className="py-12 px-8 text-center bg-indigo-600 text-white">Win</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y-4 divide-slate-50">
                                     {currentStandings.slice(0, 15).map((p, i) => (
                                         <tr key={i} className={i === 0 ? 'bg-amber-50' : ''}>
-                                            <td className="py-10 px-6 text-center font-black text-4xl text-slate-400">{i + 1}</td>
+                                            <td className="py-10 px-8 text-center font-black text-4xl text-slate-400">{i + 1}</td>
                                             <td className="py-10 px-4 font-black text-4xl uppercase text-slate-800">{p.name}</td>
                                             <td className="py-10 px-4 text-center font-bold text-3xl text-slate-500">{p.played}</td>
-                                            <td className={`py-10 px-4 text-center font-black text-4xl ${p.setDiff > 0 ? 'text-emerald-500' : p.setDiff < 0 ? 'text-rose-500' : 'text-slate-400'}`}>{p.setDiff}</td>
-                                            <td className={`py-10 px-4 text-center font-black text-4xl ${p.diff > 0 ? 'text-emerald-500' : p.diff < 0 ? 'text-rose-500' : 'text-slate-400'}`}>{p.diff}</td>
+                                            <td className={`py-10 px-4 text-center font-black text-4xl ${p.diff > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{p.diff}</td>
                                             <td className="py-10 px-8 text-center bg-indigo-50"><span className="font-black text-indigo-600 text-5xl">{p.pts}</span></td>
                                         </tr>
                                     ))}
@@ -566,35 +570,29 @@
                         {view === 'matches' && (
                             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500 pb-10">
                                 {matches.length === 0 && <div className="text-center py-20 opacity-30 font-black uppercase text-xs">Belum ada pertandingan</div>}
-                                {matches.map(m => (
-                                    <div key={m.id} className={`bg-white p-5 rounded-[2.5rem] border-2 ${m.done ? 'border-slate-50 opacity-90' : 'border-indigo-100 shadow-xl'}`}>
-                                        <div className="flex justify-between items-center mb-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-[11px] font-black text-slate-900 uppercase">GAME {m.matchNumber}</span>
-                                                <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-tighter">Lapangan {m.courtNumber} • {m.type}</span>
+                                {matches.map(m => {
+                                    const { totalS1, totalS2, setsWonT1, setsWonT2 } = calculateMatchResult(m);
+                                    return (
+                                        <div key={m.id} className={`bg-white p-5 rounded-[2.5rem] border-2 ${m.done?'border-slate-50 opacity-90':'border-indigo-100 shadow-xl'}`}>
+                                            <div className="flex justify-between items-center mb-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[11px] font-black text-slate-900 uppercase">GAME {m.matchNumber}</span>
+                                                    <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-tighter">Lapangan {m.courtNumber} • {m.type}</span>
+                                                </div>
+                                                {(m.done && !isFinished) && <button onClick={() => setMatches(matches.map(ma => ma.id === m.id ? {...ma, done: false} : ma))} className="text-[9px] font-black text-indigo-400 uppercase">Edit Skor</button>}
                                             </div>
-                                            {(m.done && !isFinished) && (
-                                                <button onClick={() => setMatches(matches.map(ma => ma.id === m.id ? { ...ma, done: false } : ma))} className="text-[9px] font-black text-indigo-400 uppercase">Edit Skor</button>
-                                            )}
-                                        </div>
-
-                                        <div className="space-y-4">
-                                            <div className="grid grid-cols-12 text-center text-[9px] font-black text-slate-400 uppercase mb-1">
-                                                <div className="col-span-6 text-left">Tim</div>
-                                                <div className="col-span-2">Set 1</div>
-                                                <div className="col-span-2">Set 2</div>
-                                                <div className="col-span-2">Set 3</div>
-                                            </div>
-
-                                            {[1, 2].map(teamNum => (
-                                                <div key={teamNum} className="grid grid-cols-12 items-center gap-1">
-                                                    <div className="col-span-6 space-y-1">
-                                                        {(teamNum === 1 ? m.t1 : m.t2).map(playerId => (
-                                                            <div key={playerId} className="flex items-center gap-2">
-                                                                <div className={`w-1.5 h-1.5 rounded-full ${getPGender(playerId) === 'M' ? 'bg-blue-400' : 'bg-pink-400'}`}></div>
+                                            
+                                            <div className="space-y-4">
+                                                {/* Daftar Pemain Tim 1 dan Tim 2 */}
+                                                <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                                    <div>
+                                                        <span className="text-[9px] font-black text-indigo-600 uppercase block mb-1">Tim A</span>
+                                                        {m.t1.map(playerId => (
+                                                            <div key={playerId} className="flex items-center gap-1.5 my-1">
+                                                                <div className={`w-1.5 h-1.5 rounded-full ${getPGender(playerId)==='M'?'bg-blue-400':'bg-pink-400'}`}></div>
                                                                 {(!m.done && !isFinished) ? (
                                                                     <select 
-                                                                        className="bg-slate-50 border-none font-black text-xs p-1 rounded-lg outline-none focus:ring-1 focus:ring-indigo-300 w-full"
+                                                                        className="bg-white border font-black text-[11px] p-1 rounded-lg outline-none w-full"
                                                                         value={playerId}
                                                                         onChange={(e) => replacePlayerInMatch(m.id, playerId, e.target.value)}
                                                                     >
@@ -609,39 +607,85 @@
                                                             </div>
                                                         ))}
                                                     </div>
+                                                    <div>
+                                                        <span className="text-[9px] font-black text-pink-600 uppercase block mb-1">Tim B</span>
+                                                        {m.t2.map(playerId => (
+                                                            <div key={playerId} className="flex items-center gap-1.5 my-1">
+                                                                <div className={`w-1.5 h-1.5 rounded-full ${getPGender(playerId)==='M'?'bg-blue-400':'bg-pink-400'}`}></div>
+                                                                {(!m.done && !isFinished) ? (
+                                                                    <select 
+                                                                        className="bg-white border font-black text-[11px] p-1 rounded-lg outline-none w-full"
+                                                                        value={playerId}
+                                                                        onChange={(e) => replacePlayerInMatch(m.id, playerId, e.target.value)}
+                                                                    >
+                                                                        <option value={playerId}>{getPName(playerId)}</option>
+                                                                        {players.filter(p => p.active && !isPlayerBusy(p.id)).map(p => (
+                                                                            <option key={p.id} value={p.id}>{p.name} ({getPlayCount(p.id)}x)</option>
+                                                                        ))}
+                                                                    </select>
+                                                                ) : (
+                                                                    <span className="text-xs font-black truncate">{getPName(playerId)}</span>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
 
-                                                    {[0, 1, 2].map(setIdx => (
-                                                        <div key={setIdx} className="col-span-2">
-                                                            <input 
-                                                                type="number" 
-                                                                disabled={m.done || isFinished} 
-                                                                onFocus={handleScoreFocus} 
-                                                                className={`w-full h-10 text-center rounded-xl font-black text-sm ${(m.done || isFinished) ? 'bg-indigo-50 text-indigo-900' : 'bg-slate-100'}`} 
-                                                                value={(m.sets && m.sets[setIdx]) ? m.sets[setIdx][teamNum === 1 ? 's1' : 's2'] : 0} 
-                                                                onChange={e => {
-                                                                    const val = parseInt(e.target.value) || 0;
-                                                                    const currentSets = m.sets || [{ s1: 0, s2: 0 }, { s1: 0, s2: 0 }, { s1: 0, s2: 0 }];
-                                                                    const updatedSets = [...currentSets];
-                                                                    updatedSets[setIdx] = { 
-                                                                        ...updatedSets[setIdx], 
-                                                                        [teamNum === 1 ? 's1' : 's2']: val 
-                                                                    };
-                                                                    setMatches(matches.map(ma => ma.id === m.id ? { ...ma, sets: updatedSets } : ma));
-                                                                }} 
-                                                            />
+                                                {/* Perhitungan Skor Per Set */}
+                                                <div className="space-y-2">
+                                                    {m.sets.map((s, idx) => (
+                                                        <div key={idx} className="flex items-center justify-between bg-slate-100 p-2 px-3 rounded-xl">
+                                                            <span className="text-[10px] font-black text-slate-500 uppercase">SET {idx + 1}</span>
+                                                            <div className="flex items-center gap-3">
+                                                                <input 
+                                                                    type="number" 
+                                                                    disabled={m.done || isFinished} 
+                                                                    onFocus={handleScoreFocus} 
+                                                                    className={`w-10 h-10 text-center rounded-xl font-black text-base ${(m.done || isFinished) ? 'bg-indigo-50 text-indigo-900' : 'bg-white'}`} 
+                                                                    value={s.s1} 
+                                                                    onChange={e => updateSetScore(m.id, idx, 1, e.target.value)} 
+                                                                />
+                                                                <span className="text-slate-400 font-black text-xs">-</span>
+                                                                <input 
+                                                                    type="number" 
+                                                                    disabled={m.done || isFinished} 
+                                                                    onFocus={handleScoreFocus} 
+                                                                    className={`w-10 h-10 text-center rounded-xl font-black text-base ${(m.done || isFinished) ? 'bg-indigo-50 text-indigo-900' : 'bg-white'}`} 
+                                                                    value={s.s2} 
+                                                                    onChange={e => updateSetScore(m.id, idx, 2, e.target.value)} 
+                                                                />
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
-                                            ))}
 
-                                            {(!m.done && !isFinished) && (
-                                                <button onClick={() => setMatches(matches.map(ma => ma.id === m.id ? { ...ma, done: true } : ma))} className="w-full py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase mt-2">
-                                                    SIMPAN SKOR
-                                                </button>
-                                            )}
+                                                {/* Tombol Tambah / Hapus Set */}
+                                                {(!m.done && !isFinished) && (
+                                                    <div className="flex gap-2">
+                                                        {m.sets.length < 3 && (
+                                                            <button onClick={() => addSet(m.id)} className="flex-1 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-100">
+                                                                + Tambah Set ({m.sets.length}/3)
+                                                            </button>
+                                                        )}
+                                                        {m.sets.length > 1 && (
+                                                            <button onClick={() => removeSet(m.id)} className="py-2 px-3 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase hover:bg-rose-100">
+                                                                Hapus Set
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* Ringkasan Hasil Set */}
+                                                <div className="flex justify-between items-center text-[10px] font-black px-2 pt-1 border-t text-slate-400">
+                                                    <span>TOTAL POIN: {totalS1} - {totalS2}</span>
+                                                    <span>MENANG SET: {setsWonT1} - {setsWonT2}</span>
+                                                </div>
+
+                                                {(!m.done && !isFinished) && <button onClick={() => setMatches(matches.map(ma => ma.id === m.id ? {...ma, done: true} : ma))} className="w-full py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase shadow-md">SIMPAN SKOR</button>}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
 
@@ -663,23 +707,21 @@
                                         <table className="w-full text-left">
                                             <thead className="bg-slate-50 text-[9px] font-black uppercase text-slate-400">
                                                 <tr>
-                                                    <th className="py-4 px-3 text-center">Pos</th>
-                                                    <th className="py-4 px-2">Pemain</th>
-                                                    <th className="py-4 px-2 text-center">MP</th>
-                                                    <th className="py-4 px-2 text-center">Set +/-</th>
-                                                    <th className="py-4 px-2 text-center">Poin +/-</th>
-                                                    <th className="py-4 px-3 text-center bg-indigo-50 text-indigo-600">Win</th>
+                                                    <th className="py-5 px-4 text-center">Pos</th>
+                                                    <th className="py-5 px-2">Pemain</th>
+                                                    <th className="py-5 px-2 text-center">MP</th>
+                                                    <th className="py-5 px-2 text-center">+/-</th>
+                                                    <th className="py-5 px-4 text-center bg-indigo-50 text-indigo-600">Win</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y">
                                                 {getStandings().map((p, i) => (
                                                     <tr key={i} className={isFinished && i === 0 ? 'bg-amber-50/50 final-rank-1' : ''}>
-                                                        <td className="py-4 px-3 text-center font-black text-xs text-slate-300">{i + 1}</td>
-                                                        <td className="py-4 px-2 font-black text-xs uppercase truncate max-w-[100px]">{p.name}</td>
-                                                        <td className="py-4 px-2 text-center font-bold text-xs">{p.played}</td>
-                                                        <td className={`py-4 px-2 text-center font-black text-xs ${p.setDiff > 0 ? 'text-emerald-500' : p.setDiff < 0 ? 'text-rose-500' : 'text-slate-400'}`}>{p.setDiff}</td>
-                                                        <td className={`py-4 px-2 text-center font-black text-xs ${p.diff > 0 ? 'text-emerald-500' : p.diff < 0 ? 'text-rose-500' : 'text-slate-400'}`}>{p.diff}</td>
-                                                        <td className="py-4 px-3 text-center"><span className="font-black text-indigo-600 text-sm block text-center">{p.pts}</span></td>
+                                                        <td className="py-5 px-4 text-center font-black text-xs text-slate-300">{i + 1}</td>
+                                                        <td className="py-5 px-2 font-black text-xs uppercase truncate max-w-[120px]">{p.name}</td>
+                                                        <td className="py-5 px-2 text-center font-bold text-xs">{p.played}</td>
+                                                        <td className={`py-5 px-2 text-center font-black text-xs ${p.diff > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{p.diff}</td>
+                                                        <td className="py-5 px-4 text-center"><span className="font-black text-indigo-600 text-sm block text-center">{p.pts}</span></td>
                                                     </tr>
                                                 ))}
                                             </tbody>
