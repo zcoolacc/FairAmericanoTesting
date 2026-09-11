@@ -369,16 +369,15 @@
                             pf += myTotalPts;
                             pa += oppTotalPts;
 
-                            // Perhitungan poin sepenuhnya berdasarkan hasil keunggulan SET
                             if (mySetsWon > oppSetsWon) {
                                 wins++;
-                                pts += 3; // Menang Set = 3 poin
+                                pts += 3;
                             } else if (mySetsWon < oppSetsWon) {
                                 loses++;
-                                pts += 0; // Kalah Set = 0 poin
+                                pts += 0;
                             } else {
                                 draws++;
-                                pts += 1; // Seri Set (misal 1-1) = 1 poin
+                                pts += 1;
                             }
                         }
                     });
@@ -637,25 +636,33 @@
                                                     </div>
                                                 </div>
 
-                                                <div className="space-y-2">
+                                                <div className="space-y-3">
                                                     {m.sets.map((s, idx) => (
-                                                        <div key={idx} className="flex items-center justify-between bg-slate-100 p-2 px-3 rounded-xl">
-                                                            <span className="text-[10px] font-black text-slate-500 uppercase">SET {idx + 1}</span>
-                                                            <div className="flex items-center gap-3">
+                                                        <div key={idx} className="flex flex-col items-center bg-slate-100 p-2.5 rounded-2xl">
+                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">SET {idx + 1}</span>
+                                                            <div className="flex items-center justify-center gap-3">
                                                                 <input 
                                                                     type="number" 
                                                                     disabled={m.done || isFinished} 
                                                                     onFocus={handleScoreFocus} 
-                                                                    className={`w-10 h-10 text-center rounded-xl font-black text-base ${(m.done || isFinished) ? 'bg-indigo-50 text-indigo-900' : 'bg-white'}`} 
+                                                                    className={`w-12 h-12 text-center rounded-xl font-black text-lg border-2 ${
+                                                                        (m.done || isFinished) 
+                                                                            ? 'bg-indigo-50 border-indigo-100 text-indigo-900' 
+                                                                            : 'bg-white border-slate-200 focus:border-indigo-500'
+                                                                    }`} 
                                                                     value={s.s1} 
                                                                     onChange={e => updateSetScore(m.id, idx, 1, e.target.value)} 
                                                                 />
-                                                                <span className="text-slate-400 font-black text-xs">-</span>
+                                                                <span className="text-slate-400 font-black text-base">-</span>
                                                                 <input 
                                                                     type="number" 
                                                                     disabled={m.done || isFinished} 
                                                                     onFocus={handleScoreFocus} 
-                                                                    className={`w-10 h-10 text-center rounded-xl font-black text-base ${(m.done || isFinished) ? 'bg-indigo-50 text-indigo-900' : 'bg-white'}`} 
+                                                                    className={`w-12 h-12 text-center rounded-xl font-black text-lg border-2 ${
+                                                                        (m.done || isFinished) 
+                                                                            ? 'bg-indigo-50 border-indigo-100 text-indigo-900' 
+                                                                            : 'bg-white border-slate-200 focus:border-indigo-500'
+                                                                    }`} 
                                                                     value={s.s2} 
                                                                     onChange={e => updateSetScore(m.id, idx, 2, e.target.value)} 
                                                                 />
